@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuggyShop - QA Demo Store</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #f4f6f8; color: #333; padding-bottom: 50px; }
+    header { background: #1e293b; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+    .cart-badge { background: #ef4444; color: white; padding: 2px 8px; border-radius: 12px; font-size: 13px; margin-left: 5px; }
+    .container { max-width: 900px; margin: 30px auto; padding: 0 15px; }
+    .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); margin-bottom: 20px; }
+    .hidden { display: none !important; }
+    
+    /* Forms & Inputs */
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 14px; }
+    input, select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+    button { background: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+    button:hover { background: #1d4ed8; }
+    .btn-danger { background: #dc2626; }
+    .btn-danger:hover { background: #b91c1c; }
+    .error-text { color: #dc2626; font-size: 13px; margin-top: 5px; }
+
+    /* Product Grid */
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+    .product-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: center; }
+    .product-price { font-size: 18px; font-weight: bold; color: #0f172a; margin: 10px 0; }
+    
+    /* Cart Table */
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { text-align: left; padding: 12px; border-bottom: 1px solid #e2e8f0; }
+    .summary { text-align: right; margin-top: 20px; font-size: 16px; line-height: 1.8; }
+    .success-box { background: #dcfce7; border: 1px solid #86efac; color: #166534; padding: 15px; border-radius: 6px; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h2>BuggyShop Demo</h2>
+    <div>
+      <span id="user-display" class="hidden">Welcome, <strong id="logged-user"></strong> | </span>
+      <button id="nav-cart-btn" class="hidden" onclick="showPage('cart-page')">
+        Cart <span id="cart-count" class="cart-badge">0</span>
+      </button>
+      <button id="logout-btn" class="btn-danger hidden" onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- 1. LOGIN PAGE -->
+    <div id="login-page" class="card">
+      <h3>Customer Login</h3>
+      <p style="color: #64748b; font-size: 13px; margin-bottom: 15px;">Valid test credentials: <code>standard_user</code> / <code>secret_pass</code></p>
+      
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" placeholder="Enter username" />
+      </div>
+      
+      <!-- BUG 1: type is 'text' instead of 'password' (Security/UI Bug) -->
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="text" id="password" placeholder="Enter password" />
+      </div>
+
+      <button id="login-submit-btn" onclick="handleLogin()">Sign In</button>
+      <p id="login-error" class="error-text hidden"></p>
+    </div>
+
+    <!-- 2. PRODUCTS PAGE -->
+    <div id="products-page" class="card hidden">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h3>Product Catalog</h3>
+        <select id="sort-select" style="width: 200px;" onchange="sortProducts()">
+          <option value="default">Default</option>
+          <option value="low-high">Price: Low to High</option>
+          <option value="high-low">Price: High to Low</option>
+        </select>
+      </div>
+
+      <div class="product-grid" id="product-list"></div>
+    </div>
+
+    <!-- 3. CART & CHECKOUT PAGE -->
+    <div id="cart-page" class="card hidden">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3>Your Shopping Cart</h3>
+        <button onclick="showPage('products-page')">Continue Shopping</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Unit Price</th>
+            <th>Quantity</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="cart-items-body"></tbody>
+      </table>
+
+      <div class="summary">
+        <div>Subtotal: $<span id="subtotal-amount">0.00</span></div>
+        <div>Tax (10%): $<span id="tax-amount">0.00</span></div>
+        <div><strong>Total: $<span id="total-amount">0.00</span></strong></div>
+      </div>
+
+      <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;" />
+
+      <h4>Shipping Details</h4>
+      <div class="form-group" style="margin-top: 10px;">
+        <label for="shipping-name">Full Name</label>
+        <input type="text" id="shipping-name" placeholder="John Doe" />
+      </div>
+      <div class="form-group">
+        <label for="shipping-zip">Postal / ZIP Code</label>
+        <!-- BUG 2: No pattern/length limit on postal code -->
+        <input type="text" id="shipping-zip" placeholder="e.g. 12345" />
+      </div>
+
+      <button id="checkout-btn" onclick="handleCheckout()">Complete Purchase</button>
+      <p id="checkout-error" class="error-text hidden"></p>
+    </div>
+
+    <!-- 4. ORDER CONFIRMATION PAGE -->
+    <div id="order-success-page" class="card hidden">
+      <div class="success-box">
+        <h3>Order Placed Successfully!</h3>
+        <p>Order Reference: <strong id="order-id"></strong></p>
+        <p style="margin-top: 10px;">Thank you for your purchase.</p>
+      </div>
+      <div style="text-align: center; margin-top: 20px;">
+        <button onclick="resetAndShop()">Shop Again</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Initial catalog data
+    const products = [
+      { id: 1, name: "Wireless Bluetooth Headphones", price: 49.99 },
+      { id: 2, name: "Mechanical Gaming Keyboard", price: 89.99 },
+      { id: 3, name: "Ergonomic Optical Mouse", price: 29.99 },
+      { id: 4, name: "Ultra-Wide Gaming Monitor", price: 299.99 }
+    ];
+
+    let cart = [];
+    let currentUser = null;
+
+    // Navigation helper
+    function showPage(pageId) {
+      const pages = ['login-page', 'products-page', 'cart-page', 'order-success-page'];
+      pages.forEach(id => document.getElementById(id).classList.add('hidden'));
+      document.getElementById(pageId).classList.remove('hidden');
+      
+      if (pageId === 'cart-page') renderCart();
+      if (pageId === 'products-page') renderProducts(products);
+    }
+
+    // 1. Authentication
+    function handleLogin() {
+      const u = document.getElementById('username').value.trim();
+      const p = document.getElementById('password').value.trim();
+      const errorElem = document.getElementById('login-error');
+
+      if (u === 'standard_user' && p === 'secret_pass') {
+        currentUser = u;
+        errorElem.classList.add('hidden');
+        document.getElementById('logged-user').innerText = u;
+        document.getElementById('user-display').classList.remove('hidden');
+        document.getElementById('nav-cart-btn').classList.remove('hidden');
+        document.getElementById('logout-btn').classList.remove('hidden');
+        showPage('products-page');
+      } else {
+        errorElem.innerText = "Invalid credentials. Use standard_user / secret_pass";
+        errorElem.classList.remove('hidden');
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('user-display').classList.add('hidden');
+      document.getElementById('nav-cart-btn').classList.add('hidden');
+      document.getElementById('logout-btn').classList.add('hidden');
+      document.getElementById('username').value = '';
+      document.getElementById('password').value = '';
+      showPage('login-page');
+    }
+
+    // 2. Products Rendering
+    function renderProducts(items) {
+      const list = document.getElementById('product-list');
+      list.innerHTML = '';
+      items.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
+          <h4>${p.name}</h4>
+          <div class="product-price">$${p.price.toFixed(2)}</div>
+          <button id="add-to-cart-${p.id}" onclick="addToCart(${p.id})">Add to Cart</button>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    // BUG 3: Sort Low-High does string sort instead of numeric sort
+    function sortProducts() {
+      const sortType = document.getElementById('sort-select').value;
+      let sorted = [...products];
+
+      if (sortType === 'low-high') {
+        // String comparison bug: '299.99' will come before '49.99'
+        sorted.sort((a, b) => String(a.price).localeCompare(String(b.price)));
+      } else if (sortType === 'high-low') {
+        sorted.sort((a, b) => b.price - a.price);
+      }
+      renderProducts(sorted);
+    }
+
+    // 3. Cart Functions
+    function addToCart(productId) {
+      const product = products.find(p => p.id === productId);
+      const existing = cart.find(item => item.id === productId);
+
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        cart.push({ ...product, quantity: 1 });
+      }
+
+      updateCartBadge();
+    }
+
+    function updateCartBadge() {
+      const totalCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+      document.getElementById('cart-count').innerText = totalCount;
+    }
+
+    function renderCart() {
+      const tbody = document.getElementById('cart-items-body');
+      tbody.innerHTML = '';
+
+      cart.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${item.name}</td>
+          <td>$${item.price.toFixed(2)}</td>
+          <td>
+            <!-- BUG 4: Quantity input allows negative numbers & 0 without lower bound -->
+            <input type="number" id="qty-${item.id}" value="${item.quantity}" style="width: 70px;" onchange="updateQuantity(${item.id}, this.value)" />
+          </td>
+          <td>
+            <button class="btn-danger" id="remove-btn-${item.id}" onclick="removeFromCart(${item.id})">Remove</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      calculateTotals();
+    }
+
+    function updateQuantity(productId, newQty) {
+      const item = cart.find(p => p.id === productId);
+      if (item) {
+        // BUG 4 (cont): Parsed directly without checking if newQty < 1
+        item.quantity = parseFloat(newQty) || 0;
+        calculateTotals();
+        updateCartBadge();
+      }
+    }
+
+    // BUG 5: Removes item from cart array and updates table, but forgets to call updateCartBadge()
+    function removeFromCart(productId) {
+      cart = cart.filter(p => p.id !== productId);
+      renderCart();
+      // Notice: updateCartBadge() is deliberately omitted here!
+    }
+
+    // BUG 6: Floating-point precision error and incorrect tax math calculation
+    function calculateTotals() {
+      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      
+      // Deliberate math bug: Tax calculates 10% but subtracts $0.05 arbitrarily
+      let tax = subtotal > 0 ? (subtotal * 0.10) - 0.05 : 0;
+      if (tax < 0) tax = 0;
+
+      const total = subtotal + tax;
+
+      document.getElementById('subtotal-amount').innerText = subtotal.toFixed(2);
+      document.getElementById('tax-amount').innerText = tax.toFixed(2);
+      document.getElementById('total-amount').innerText = total.toFixed(2);
+    }
+
+    // 4. Checkout
+    function handleCheckout() {
+      const errorElem = document.getElementById('checkout-error');
+      
+      // BUG 7: Empty Cart Bypass -> allows checkout even when cart is empty
+      // Missing check: if (cart.length === 0) { ... }
+
+      const name = document.getElementById('shipping-name').value.trim();
+      const zip = document.getElementById('shipping-zip').value.trim();
+
+      if (!name) {
+        errorElem.innerText = "Please provide a shipping name.";
+        errorElem.classList.remove('hidden');
+        return;
+      }
+
+      errorElem.classList.add('hidden');
+      document.getElementById('order-id').innerText = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
+      showPage('order-success-page');
+    }
+
+    function resetAndShop() {
+      cart = [];
+      updateCartBadge();
+      document.getElementById('shipping-name').value = '';
+      document.getElementById('shipping-zip').value = '';
+      showPage('products-page');
+    }
+  </script>
+</body>
+</html>

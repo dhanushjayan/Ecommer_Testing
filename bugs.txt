@@ -1,0 +1,14 @@
+Bug ID,Type,Location,Planted Defect,Expected Test Behavior
+BUG-01,Security / UI,Login Page,"Password field uses type=""text"" exposing clear text.","Locator assertion expect(input).toHaveAttribute('type', 'password') FAILS."
+BUG-02,Functional,Catalog,"Sorting ""Price: Low to High"" sorts strings alphabetically (299.99 before 49.99).",Array numeric sorting assertion FAILS.
+BUG-03,Boundary / Validation,Cart Page,"Quantity accepts 0 and negative values (-2), resulting in negative subtotals.","Assert total >= 0 or input min=""1"" FAILS."
+BUG-04,State / UI Desync,Cart Page,"Clicking Remove removes the table row, but the header badge count does not decrement.",Assert cartBadge.innerText == remainingItems FAILS.
+BUG-05,Calculation Logic,Cart Page,Tax logic has a −0.05 calculation skew.,Assert subtotal * 0.10 === tax FAILS.
+BUG-06,Business Logic,Checkout,Clicking Complete Purchase with an empty cart succeeds and generates an Order ID.,Assert error message on empty checkout FAILS.
+
+
+
+
+
+RUNNING COMMEND
+.\venv1\Scripts\pytest test_ecommerce.py
